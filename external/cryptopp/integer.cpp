@@ -3199,7 +3199,6 @@ static Integer StringToInteger(const T *str, ByteOrder order)
 	if (length == 0)
 		return Integer::Zero();
 
-	// 'str' is of length 1 or more
 	switch (str[length-1])
 	{
 	case 'h':
@@ -3225,25 +3224,10 @@ static Integer StringToInteger(const T *str, ByteOrder order)
 		str += 1, length -= 1;
 	}
 
-	// Recognize common prefixes for hexadecimal, octal and decimal.
-	// Microsoft's MASM also recognizes 0t for octal, but not here.
-	if (length > 2 && str[0] == '0')
+	if (length > 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
 	{
-		if (str[1] == 'x' || str[1] == 'X')
-		{
-			radix = 16;
-			str += 2, length -= 2;
-		}
-		else if (str[1] == 'n' || str[1] == 'N')
-		{
-			radix = 10;
-			str += 2, length -= 2;
-		}
-		else if (str[1] == 'o' || str[1] == 'O')
-		{
-			radix = 8;
-			str += 2, length -= 2;
-		}
+		radix = 16;
+		str += 2, length -= 2;
 	}
 
 	if (order == BIG_ENDIAN_ORDER)

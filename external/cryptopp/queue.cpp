@@ -11,7 +11,7 @@
 
 NAMESPACE_BEGIN(CryptoPP)
 
-static const unsigned int s_maxAutoNodeSize = 16*1024u;
+static const unsigned int s_maxAutoNodeSize = 16*1024;
 
 // this class for use by ByteQueue only
 class ByteQueueNode
@@ -136,9 +136,8 @@ public:
 // ********************************************************
 
 ByteQueue::ByteQueue(size_t nodeSize)
-	: Bufferless<BufferedTransformation>()
-	, m_head(NULLPTR), m_tail(NULLPTR), m_lazyString(NULLPTR), m_lazyLength(0)
-	, m_nodeSize(nodeSize), m_lazyStringModifiable(false), m_autoNodeSize(!nodeSize)
+	: Bufferless<BufferedTransformation>(), m_autoNodeSize(!nodeSize), m_nodeSize(nodeSize)
+	, m_head(NULLPTR), m_tail(NULLPTR), m_lazyString(NULLPTR), m_lazyLength(0), m_lazyStringModifiable(false)
 {
 	// See GH #962 for the reason for this assert.
 	CRYPTOPP_ASSERT(nodeSize != SIZE_MAX);
@@ -477,18 +476,18 @@ bool ByteQueue::operator==(const ByteQueue &rhs) const
 	return true;
 }
 
-byte ByteQueue::operator[](lword index) const
+byte ByteQueue::operator[](lword i) const
 {
 	for (ByteQueueNode *current=m_head; current; current=current->m_next)
 	{
-		if (index < current->CurrentSize())
-			return (*current)[(size_t)index];
+		if (i < current->CurrentSize())
+			return (*current)[(size_t)i];
 
-		index -= current->CurrentSize();
+		i -= current->CurrentSize();
 	}
 
-	CRYPTOPP_ASSERT(index < m_lazyLength);
-	return m_lazyString[index];
+	CRYPTOPP_ASSERT(i < m_lazyLength);
+	return m_lazyString[i];
 }
 
 void ByteQueue::swap(ByteQueue &rhs)

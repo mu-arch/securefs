@@ -28,7 +28,6 @@
 #include "siphash.h"
 #include "poly1305.h"
 #include "whrlpool.h"
-#include "lsh.h"
 
 #include "pssr.h"
 #include "hkdf.h"
@@ -515,20 +514,12 @@ bool ValidateHAVAL()
 
 bool ValidatePanama()
 {
-	std::cout << "\nPanama validation suite running...\n";
 	return RunTestDataFile("TestVectors/panama.txt");
 }
 
 bool ValidateWhirlpool()
 {
-	std::cout << "\nWhirlpool validation suite running...\n";
 	return RunTestDataFile("TestVectors/whrlpool.txt");
-}
-
-bool ValidateLSH()
-{
-	std::cout << "\nLSH validation suite running...\n";
-	return RunTestDataFile("TestVectors/lsh.txt");
 }
 
 #ifdef CRYPTOPP_REMOVED

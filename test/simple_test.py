@@ -9,6 +9,7 @@ import os
 import platform
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -51,6 +52,7 @@ if IS_WINDOWS:
         # Not all reparse points are mounts, but in our test, that is close enough
         attribute = ctypes.windll.kernel32.GetFileAttributesW(path.rstrip("/\\"))
         return attribute != -1 and (attribute & 0x400) == 0x400
+
 
 else:
     ismount = os.path.ismount
@@ -131,7 +133,6 @@ def securefs_chpass(
     new_pass: str = None,
     old_keyfile: str = None,
     new_keyfile: str = None,
-    use_stdin: bool = True,
 ):
     if not old_pass and not old_keyfile:
         raise ValueError("At least one of old_pass and old_keyfile must be specified")
@@ -140,17 +141,9 @@ def securefs_chpass(
 
     args = [SECUREFS_BINARY, "chpass", data_dir, "--rounds", "2"]
     if old_pass:
-        if use_stdin:
-            args.append("--askoldpass")
-        else:
-            args.append("--oldpass")
-            args.append(old_pass)
+        args.append("--askoldpass")
     if new_pass:
-        if use_stdin:
-            args.append("--asknewpass")
-        else:
-            args.append("--newpass")
-            args.append(new_pass)
+        args.append("--asknewpass")
     if old_keyfile:
         args.append("--oldkeyfile")
         args.append(old_keyfile)
@@ -166,11 +159,10 @@ def securefs_chpass(
         universal_newlines=True,
     )
     input = ""
-    if use_stdin:
-        if old_pass:
-            input += old_pass + "\n"
-        if new_pass:
-            input += (new_pass + "\n") * 2
+    if old_pass:
+        input += old_pass + "\n"
+    if new_pass:
+        input += (new_pass + "\n") * 2
     out, err = p.communicate(input=input, timeout=3)
     logging.info("chpass output:\n%s\n%s", out, err)
 
@@ -478,9 +470,7 @@ class RegressionTest(unittest.TestCase):
         listing2 = list_dir_recursive(dir2, relpath=True)
 
         self.assertEqual(
-            listing1,
-            listing2,
-            f"{dir1} and {dir2} differ in file names",
+            listing1, listing2, f"{dir1} and {dir2} differ in file names",
         )
 
         for fn in listing1:
@@ -522,7 +512,7 @@ class ChpassTest(unittest.TestCase):
             f.write(os.urandom(9))
             return f.name
 
-    def _test_chpass(self, old_pass, new_pass, old_keyfile, new_keyfile, use_stdin):
+    def _test_chpass(self, old_pass, new_pass, old_keyfile, new_keyfile):
         data_dir = get_data_dir()
         mount_point = get_mount_point()
         test_dir_path = os.path.join(mount_point, "test")
@@ -557,7 +547,6 @@ class ChpassTest(unittest.TestCase):
             new_pass=new_pass,
             old_keyfile=old_keyfile,
             new_keyfile=new_keyfile,
-            use_stdin=use_stdin,
         )
 
         p = securefs_mount(data_dir, mount_point, new_pass, new_keyfile)
@@ -572,33 +561,14 @@ class ChpassTest(unittest.TestCase):
         old_keyfiles = [None, self._generate_keyfile()]
         new_keyfiles = [None, self._generate_keyfile()]
 
-        for (
-            old_pass,
-            new_pass,
-            old_keyfile,
-            new_keyfile,
-            use_stdin,
-        ) in itertools.product(
-            old_passes, new_passes, old_keyfiles, new_keyfiles, [True, False]
+        for old_pass, new_pass, old_keyfile, new_keyfile in itertools.product(
+            old_passes, new_passes, old_keyfiles, new_keyfiles
         ):
-            with self.subTest(
-                old_pass=old_pass,
-                new_pass=new_pass,
-                old_keyfile=old_keyfile,
-                new_keyfile=new_keyfile,
-                use_stdin=use_stdin,
-            ):
-                if not old_pass and not old_keyfile:
-                    continue
-                if not new_pass and not new_keyfile:
-                    continue
-                self._test_chpass(
-                    old_pass=old_pass,
-                    new_pass=new_pass,
-                    old_keyfile=old_keyfile,
-                    new_keyfile=new_keyfile,
-                    use_stdin=use_stdin,
-                )
+            if not old_pass and not old_keyfile:
+                continue
+            if not new_pass and not new_keyfile:
+                continue
+            self._test_chpass(old_pass, new_pass, old_keyfile, new_keyfile)
 
 
 if __name__ == "__main__":

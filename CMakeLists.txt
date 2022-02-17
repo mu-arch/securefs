@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 11)
 
 project(securefs)
-enable_testing()
 if (POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
 endif()
@@ -26,6 +23,7 @@ if (UNIX)
     include_directories(${FUSE_INCLUDE_DIR})
     link_libraries(${FUSE_LIBRARIES})
     add_compile_options(-Wall -Wextra -Wno-unknown-pragmas)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=gnu++11")
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-Wthread-safety -Wthread-safety-negative)
@@ -119,6 +117,7 @@ int main() {
 configure_file(sources/securefs_config.in securefs_config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+enable_testing()
 add_test(NAME sec_test COMMAND securefs_test)
 find_package(Python3 COMPONENTS Interpreter)
 if (Python3_FOUND)

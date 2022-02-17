@@ -73,7 +73,6 @@ bool ValidateAll(bool thorough)
 	pass=TestHuffmanCodes() && pass;
 	// http://github.com/weidai11/cryptopp/issues/346
 	pass=TestASN1Parse() && pass;
-	pass=TestASN1Functions() && pass;
 	// https://github.com/weidai11/cryptopp/pull/334
 	pass=TestStringSink() && pass;
 	// Always part of the self tests; call in Debug
@@ -106,8 +105,6 @@ bool ValidateAll(bool thorough)
 	pass=ValidateSHA3() && pass;
 	pass=ValidateSHAKE() && pass;
 	pass=ValidateSHAKE_XOF() && pass;
-
-	pass=ValidateLSH() && pass;
 
 	pass=ValidateHashDRBG() && pass;
 	pass=ValidateHmacDRBG() && pass;
@@ -714,7 +711,7 @@ bool TestMersenne()
 	bool pass = true;
 
 	try {rng.reset(new MT19937ar);}
-	catch (const Exception &) {}
+	catch (const PadlockRNG_Err &) {}
 
 	if(rng.get())
 	{
@@ -723,7 +720,7 @@ bool TestMersenne()
 
 	// Reset state
 	try {rng.reset(new MT19937ar);}
-	catch (const Exception &) {}
+	catch (const PadlockRNG_Err &) {}
 
 	if(rng.get())
 	{
@@ -763,10 +760,6 @@ bool TestPadlockRNG()
 	{
 		PadlockRNG& padlock = dynamic_cast<PadlockRNG&>(*rng.get());
 		pass = Test_RandomNumberGenerator(padlock);
-
-		// PadlockRNG does not accept entropy. However, the contract is no throw
-		const byte entropy[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		(void)padlock.IncorporateEntropy(entropy, sizeof(entropy));
 
 		SecByteBlock zero(16), one(16), t(16);
 		std::memset(zero, 0x00, zero.size());
@@ -846,10 +839,6 @@ bool TestRDRAND()
 		RDRAND& rdrand = dynamic_cast<RDRAND&>(*rng.get());
 		pass = Test_RandomNumberGenerator(rdrand) && pass;
 
-		// RDRAND does not accept entropy. However, the contract is no throw
-		const byte entropy[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		(void)rdrand.IncorporateEntropy(entropy, sizeof(entropy));
-
 		MaurerRandomnessTest maurer;
 		const unsigned int SIZE = 1024*10;
 		RandomNumberSource(rdrand, SIZE, true, new Redirector(maurer));
@@ -890,10 +879,6 @@ bool TestRDSEED()
 	{
 		RDSEED& rdseed = dynamic_cast<RDSEED&>(*rng.get());
 		pass = Test_RandomNumberGenerator(rdseed) && pass;
-
-		// RDSEED does not accept entropy. However, the contract is no throw
-		const byte entropy[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		(void)rdseed.IncorporateEntropy(entropy, sizeof(entropy));
 
 		MaurerRandomnessTest maurer;
 		const unsigned int SIZE = 1024*10;
@@ -937,10 +922,6 @@ bool TestDARN()
 	{
 		DARN& darn = dynamic_cast<DARN&>(*rng.get());
 		pass = Test_RandomNumberGenerator(darn) && pass;
-
-		// DARN does not accept entropy. However, the contract is no throw
-		const byte entropy[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		(void)darn.IncorporateEntropy(entropy, sizeof(entropy));
 
 		MaurerRandomnessTest maurer;
 		const unsigned int SIZE = 1024*10;
