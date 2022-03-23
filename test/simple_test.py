@@ -94,9 +94,11 @@ def securefs_unmount(p: subprocess.Popen, mount_point: str):
             p.send_signal(signal.CTRL_BREAK_EVENT)
         else:
             p.send_signal(signal.SIGINT)
-        p.communicate(timeout=5)
+        stdout, stderr = p.communicate(timeout=5)
         if p.returncode:
-            raise RuntimeError(f"securefs failed with code {p.returncode}")
+            raise RuntimeError(
+                f"unmount failed with code {p.returncode}.\nStdout: {repr(stdout)}\nStderr: {repr(stderr)}\n"
+            )
         if ismount(mount_point):
             raise RuntimeError(f"{mount_point} still mounted")
     except:
@@ -177,12 +179,12 @@ def securefs_chpass(
 
 def get_data_dir(format_version=4):
     return tempfile.mkdtemp(
-        prefix=f"securefs.format{format_version}.data_dir", dir="tmp"
+        prefix=f"{uuid.uuid4()}.format{format_version}.data_dir", dir="tmp"
     )
 
 
 def get_mount_point():
-    result = tempfile.mkdtemp(prefix=f"securefs.mount_point", dir="tmp")
+    result = tempfile.mkdtemp(prefix=f"{uuid.uuid4()}.mount_point", dir="tmp")
     os.rmdir(result)
     return result
 
