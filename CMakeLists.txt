@@ -116,6 +116,9 @@ else()
     add_executable(securefs main.cpp)
 endif()
 
+find_package(boost_stacktrace_basic)
+target_link_libraries(securefs-static PUBLIC Boost::stacktrace_basic)
+
 add_executable(securefs_test ${TEST_SOURCES})
 
 add_test(NAME sec_test COMMAND securefs_test)
