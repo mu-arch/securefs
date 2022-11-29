@@ -248,9 +248,9 @@ void generate_random(void* buffer, size_t size)
 void hmac_sha256_calculate(
     const void* message, size_t msg_len, const void* key, size_t key_len, void* mac, size_t mac_len)
 {
-    CryptoPP::HMAC<CryptoPP::SHA256> hmac(static_cast<const byte*>(key), key_len);
-    hmac.Update(static_cast<const byte*>(message), msg_len);
-    hmac.TruncatedFinal(static_cast<byte*>(mac), mac_len);
+    HMAC_SHA256 hmac(key, key_len);
+    hmac.update(message, msg_len);
+    hmac.digest(mac, mac_len);
 }
 
 bool hmac_sha256_verify(const void* message,
@@ -260,9 +260,11 @@ bool hmac_sha256_verify(const void* message,
                         const void* mac,
                         size_t mac_len)
 {
-    CryptoPP::HMAC<CryptoPP::SHA256> hmac(static_cast<const byte*>(key), key_len);
-    hmac.Update(static_cast<const byte*>(message), msg_len);
-    return hmac.TruncatedVerify(static_cast<const byte*>(mac), mac_len);
+    unsigned char computed_mac[16];
+    HMAC_SHA256 hmac(key, key_len);
+    hmac.update(message, msg_len);
+    hmac.digest(computed_mac, sizeof(computed_mac));
+    return CRYPTO_memcmp(mac, computed_mac, std::min(sizeof(computed_mac), mac_len));
 }
 
 unsigned int pbkdf_hmac_sha256(const void* password,
@@ -333,5 +335,32 @@ void hkdf(const void* key,
     {
         hkdf_expand(key, key_len, info, info_len, output, out_len);
     }
+}
+
+HMAC_SHA256::HMAC_SHA256(const void* key, size_t size)
+{
+    m_ctx.reset(::HMAC_CTX_new());
+    if (!m_ctx)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    CALL_OPENSSL_CHECKED(::HMAC_Init_ex(m_ctx.get(), key, safe_cast(size), EVP_sha256(), nullptr));
+}
+
+void HMAC_SHA256::update(const void* input, size_t size)
+{
+    CALL_OPENSSL_CHECKED(
+        ::HMAC_Update(m_ctx.get(), static_cast<const byte*>(input), safe_cast(size)));
+}
+
+void HMAC_SHA256::digest(void* digest, size_t size)
+{
+    unsigned int len = safe_cast(size);
+    CALL_OPENSSL_CHECKED(::HMAC_Final(m_ctx.get(), static_cast<byte*>(digest), &len));
+}
+
+void HMAC_SHA256::reset()
+{
+    CALL_OPENSSL_CHECKED(::HMAC_Init_ex(m_ctx.get(), nullptr, 0, nullptr, nullptr));
 }
 }    // namespace securefs

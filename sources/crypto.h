@@ -7,6 +7,7 @@
 #include <cryptopp/modes.h>
 #include <openssl/cmac.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -26,11 +27,22 @@ struct CMACCloser
 
 struct EVPCipherCTXFreer
 {
-    void operator()(::EVP_CIPHER_CTX* ctx)
+    void operator()(::EVP_CIPHER_CTX* ctx) const
     {
         if (ctx)
         {
             ::EVP_CIPHER_CTX_free(ctx);
+        }
+    }
+};
+
+struct HMACFreer
+{
+    void operator()(::HMAC_CTX* ctx) const
+    {
+        if (ctx)
+        {
+            ::HMAC_CTX_free(ctx);
         }
     }
 };
@@ -74,6 +86,18 @@ public:
                             size_t additional_len,
                             void* plaintext,
                             const void* siv);
+};
+
+class HMAC_SHA256
+{
+private:
+    std::unique_ptr<::HMAC_CTX, HMACFreer> m_ctx;
+
+public:
+    explicit HMAC_SHA256(const void* key, size_t size);
+    void update(const void* input, size_t size);
+    void digest(void* digest, size_t size);
+    void reset();
 };
 
 void hmac_sha256_calculate(const void* message,
