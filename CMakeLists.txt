@@ -116,6 +116,9 @@ find_package(absl CONFIG REQUIRED)
 target_link_libraries(
     securefs-static PUBLIC absl::base absl::inlined_vector absl::flat_hash_map
                            absl::strings absl::optional)
+find_package(OpenSSL REQUIRED)
+target_link_libraries(securefs-static PUBLIC OpenSSL::Crypto)
+
 if(SECUREFS_USE_VCPKG)
     find_package(cryptopp CONFIG REQUIRED)
     target_link_libraries(securefs-static PUBLIC cryptopp::cryptopp)
