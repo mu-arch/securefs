@@ -271,15 +271,25 @@ void warn_if_key_not_random(const Container& c, const char* file, int line) noex
 class SecByteBlock : public std::vector<unsigned char>
 {
 public:
-    using vector::vector;
-
     SecByteBlock() {}
 
-    explicit SecByteBlock(const unsigned char* data, size_t size) : SecByteBlock(data, data + size)
+    explicit SecByteBlock(size_t size) { resize(size); }
+
+    explicit SecByteBlock(const unsigned char* data, size_t size)
+        : std::vector<unsigned char>(data, data + size)
+    {
+    }
+
+    explicit SecByteBlock(const char* data, size_t size)
+        : SecByteBlock(reinterpret_cast<const unsigned char*>(data), size)
     {
     }
 
     void assign(const unsigned char* data, size_t size) { vector::assign(data, data + size); }
+    void assign(const char* data, size_t size)
+    {
+        assign(reinterpret_cast<const unsigned char*>(data), size);
+    }
 
     ~SecByteBlock()
     {

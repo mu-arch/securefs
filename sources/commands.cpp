@@ -322,7 +322,7 @@ Json::Value generate_config(unsigned int version,
     Json::Value config;
     config["version"] = version;
     key_type password_derived_key;
-    SecByteBlock encrypted_master_key(0, master_key.size());
+    SecByteBlock encrypted_master_key(master_key.size());
 
     if (pbkdf_algorithm == PBKDF_ALGO_PKCS5)
     {
@@ -699,14 +699,13 @@ protected:
     {
         if (pass.isSet() && !pass.getValue().empty())
         {
-            password.assign(reinterpret_cast<const byte*>(pass.getValue().data()),
-                            pass.getValue().size());
+            password.assign(pass.getValue().data(), pass.getValue().size());
             OPENSSL_cleanse(&pass.getValue()[0], pass.getValue().size());
             return;
         }
         if (keyfile.isSet() && !keyfile.getValue().empty() && !askpass.getValue())
         {
-            password.assign(reinterpret_cast<const byte*>(EMPTY_PASSWORD_WHEN_KEY_FILE_IS_USED),
+            password.assign(EMPTY_PASSWORD_WHEN_KEY_FILE_IS_USED,
                             strlen(EMPTY_PASSWORD_WHEN_KEY_FILE_IS_USED));
             return;
         }
@@ -899,7 +898,7 @@ private:
 
     static void assign(StringRef value, SecByteBlock& output)
     {
-        output.assign(reinterpret_cast<const byte*>(value.data()), value.size());
+        output.assign(value.data(), value.size());
     }
 
 public:
