@@ -16,6 +16,7 @@
 #include <cryptopp/secblock.h>
 #include <fuse.h>
 #include <json/json.h>
+#include <openssl/crypto.h>
 #include <tclap/CmdLine.h>
 #include <utf8proc.h>
 
@@ -700,8 +701,7 @@ protected:
         {
             password.Assign(reinterpret_cast<const byte*>(pass.getValue().data()),
                             pass.getValue().size());
-            CryptoPP::SecureWipeBuffer(reinterpret_cast<byte*>(&pass.getValue()[0]),
-                                       pass.getValue().size());
+            OPENSSL_cleanse(&pass.getValue()[0], pass.getValue().size());
             return;
         }
         if (keyfile.isSet() && !keyfile.getValue().empty() && !askpass.getValue())
@@ -1172,7 +1172,7 @@ public:
         auto config = read_config(
             config_stream.get(), password.data(), password.size(), keyfile.getValue());
         config_stream.reset();
-        CryptoPP::SecureWipeBuffer(password.data(), password.size());
+        OPENSSL_cleanse(password.data(), password.size());
 
         bool is_vulnerable = popcount(config.master_key.data(), config.master_key.size())
             <= config.master_key.size();

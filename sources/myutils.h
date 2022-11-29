@@ -15,8 +15,10 @@
 #include <unordered_set>
 #include <vector>
 
+#include <absl/container/fixed_array.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/types/optional.h>
+#include <openssl/crypto.h>
 
 #define DISABLE_COPY_MOVE(cls)                                                                     \
     cls(const cls&) = delete;                                                                      \
@@ -190,7 +192,7 @@ public:
         return memcmp(m_data, other.m_data, size()) == 0;
     }
     bool operator!=(const PODArray& other) const noexcept { return !(*this == other); }
-    ~PODArray() { CryptoPP::SecureWipeArray(m_data, Size); }
+    ~PODArray() { OPENSSL_cleanse(m_data, Size); }
 };
 
 typedef PODArray<byte, KEY_LENGTH> key_type;
@@ -266,4 +268,17 @@ void warn_if_key_not_random(const Container& c, const char* file, int line) noex
 {
     warn_if_key_not_random(c.data(), c.size(), file, line);
 }
+
+class SecByteBlock : public absl::FixedArray<unsigned char>
+{
+public:
+    using FixedArray::FixedArray;
+
+    ~SecByteBlock()
+    {
+        if (empty())
+            return;
+        OPENSSL_cleanse(data(), size());
+    }
+};
 }    // namespace securefs
