@@ -91,9 +91,27 @@ static void aes256_siv_dbl(byte* block)
 }
 
 AES_SIV::AES_SIV(const void* key, size_t size)
-    : m_cmac(static_cast<const byte*>(key), size / 2)
-    , m_ctr(static_cast<const byte*>(key) + size / 2, size / 2, aes256_siv_zero_block)
+    : m_ctr(static_cast<const byte*>(key) + size / 2, size / 2, aes256_siv_zero_block)
 {
+    const ::EVP_CIPHER* cipher = nullptr;
+    if (size == 32)
+    {
+        cipher = EVP_aes_128_cbc();
+    }
+    else if (size == 64)
+    {
+        cipher = EVP_aes_256_cbc();
+    }
+    else
+    {
+        throwInvalidArgumentException("Invalid key size for AES-SIV");
+    }
+    m_cmac.reset(::CMAC_CTX_new());
+    if (!m_cmac)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    CALL_OPENSSL_CHECKED(::CMAC_Init(m_cmac.get(), key, size / 2, cipher, nullptr));
 }
 
 AES_SIV::~AES_SIV() = default;
@@ -105,13 +123,13 @@ void AES_SIV::s2v(const void* plaintext,
                   void* iv)
 {
     byte D[AES_SIV::IV_SIZE];
-    m_cmac.CalculateDigest(D, aes256_siv_zero_block, array_length(aes256_siv_zero_block));
+    calculate_cmac(D, aes256_siv_zero_block, array_length(aes256_siv_zero_block));
 
     if (additional_data && additional_len)
     {
         aes256_siv_dbl(D);
         byte add_mac[AES_SIV::IV_SIZE];
-        m_cmac.CalculateDigest(add_mac, static_cast<const byte*>(additional_data), additional_len);
+        calculate_cmac(add_mac, static_cast<const byte*>(additional_data), additional_len);
         CryptoPP::xorbuf(D, add_mac, AES_SIV::IV_SIZE);
     }
 
@@ -119,7 +137,7 @@ void AES_SIV::s2v(const void* plaintext,
     {
         SecByteBlock T(static_cast<const byte*>(plaintext), text_len);
         CryptoPP::xorbuf(T.data() + text_len - array_length(D), D, array_length(D));
-        m_cmac.CalculateDigest(static_cast<byte*>(iv), T.data(), T.size());
+        calculate_cmac(static_cast<byte*>(iv), T.data(), T.size());
     }
     else
     {
@@ -132,8 +150,15 @@ void AES_SIV::s2v(const void* plaintext,
             padded[i] = 0;
         }
         CryptoPP::xorbuf(D, padded, AES_SIV::IV_SIZE);
-        m_cmac.CalculateDigest(static_cast<byte*>(iv), D, array_length(D));
+        calculate_cmac(static_cast<byte*>(iv), D, array_length(D));
     }
+}
+
+void AES_SIV::calculate_cmac(byte* output, const byte* input, size_t size)
+{
+    CALL_OPENSSL_CHECKED(::CMAC_Update(m_cmac.get(), input, size));
+    CALL_OPENSSL_CHECKED(::CMAC_Final(m_cmac.get(), output, nullptr));
+    CALL_OPENSSL_CHECKED(::CMAC_Init(m_cmac.get(), nullptr, 0, nullptr, nullptr));
 }
 
 void AES_SIV::encrypt_and_authenticate(const void* plaintext,

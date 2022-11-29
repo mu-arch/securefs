@@ -5,18 +5,31 @@
 #include <cryptopp/aes.h>
 #include <cryptopp/cmac.h>
 #include <cryptopp/modes.h>
+#include <openssl/cmac.h>
+#include <openssl/evp.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
 namespace securefs
 {
+struct CMACCloser
+{
+    void operator()(::CMAC_CTX* ctx) const
+    {
+        if (ctx)
+        {
+            ::CMAC_CTX_free(ctx);
+        }
+    }
+};
+
 // Implementation of AES-SIV according to https://tools.ietf.org/html/rfc5297
 class AES_SIV
 {
 private:
     Mutex m_mutex;
-    CryptoPP::CMAC<CryptoPP::AES> m_cmac THREAD_ANNOTATION_GUARDED_BY(m_mutex);
+    std::unique_ptr<::CMAC_CTX, CMACCloser> m_cmac THREAD_ANNOTATION_GUARDED_BY(m_mutex);
     CryptoPP::CTR_Mode<CryptoPP::AES>::Encryption m_ctr THREAD_ANNOTATION_GUARDED_BY(m_mutex);
 
 private:
@@ -25,6 +38,9 @@ private:
              const void* additional_data,
              size_t additional_len,
              void* iv) THREAD_ANNOTATION_REQUIRES(m_mutex);
+
+    void calculate_cmac(byte* output, const byte* input, size_t size)
+        THREAD_ANNOTATION_REQUIRES(m_mutex);
 
 public:
     static constexpr size_t IV_SIZE = 16;
