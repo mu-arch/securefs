@@ -13,6 +13,9 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 
+#include <cerrno>
+#include <limits>
+
 // Some of the following codes are copied from https://github.com/arktronic/aes-siv.
 // The licence follows:
 
@@ -34,6 +37,15 @@
 
 namespace securefs
 {
+
+static int safe_cast(size_t size)
+{
+    if (size < std::numeric_limits<int>::max())
+    {
+        return static_cast<int>(size);
+    }
+    throwVFSException(E2BIG);
+}
 
 class OpenSSLException : public ExceptionBase
 {
@@ -91,16 +103,18 @@ static void aes256_siv_dbl(byte* block)
 }
 
 AES_SIV::AES_SIV(const void* key, size_t size)
-    : m_ctr(static_cast<const byte*>(key) + size / 2, size / 2, aes256_siv_zero_block)
 {
-    const ::EVP_CIPHER* cipher = nullptr;
+    const ::EVP_CIPHER* cmac_cipher = nullptr;
+    const ::EVP_CIPHER* ctr_cipher = nullptr;
     if (size == 32)
     {
-        cipher = EVP_aes_128_cbc();
+        cmac_cipher = EVP_aes_128_cbc();
+        ctr_cipher = EVP_aes_128_ctr();
     }
     else if (size == 64)
     {
-        cipher = EVP_aes_256_cbc();
+        cmac_cipher = EVP_aes_256_cbc();
+        ctr_cipher = EVP_aes_256_ctr();
     }
     else
     {
@@ -111,7 +125,18 @@ AES_SIV::AES_SIV(const void* key, size_t size)
     {
         CALL_OPENSSL_CHECKED(0);
     }
-    CALL_OPENSSL_CHECKED(::CMAC_Init(m_cmac.get(), key, size / 2, cipher, nullptr));
+    CALL_OPENSSL_CHECKED(::CMAC_Init(m_cmac.get(), key, size / 2, cmac_cipher, nullptr));
+    m_ctr.reset(::EVP_CIPHER_CTX_new());
+    if (!m_ctr)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    CALL_OPENSSL_CHECKED(::EVP_CipherInit_ex(m_ctr.get(),
+                                             ctr_cipher,
+                                             nullptr,
+                                             static_cast<const byte*>(key) + size / 2,
+                                             aes256_siv_zero_block,
+                                             1));
 }
 
 AES_SIV::~AES_SIV() = default;
@@ -178,9 +203,13 @@ void AES_SIV::encrypt_and_authenticate(const void* plaintext,
     modded_iv[8] &= 0x7fu;
     modded_iv[12] &= 0x7fu;
 
-    m_ctr.Resynchronize(modded_iv, array_length(modded_iv));
-    m_ctr.ProcessData(
-        static_cast<byte*>(ciphertext), static_cast<const byte*>(plaintext), text_len);
+    int out_len = safe_cast(text_len);
+    CALL_OPENSSL_CHECKED(::EVP_CipherInit_ex(m_ctr.get(), nullptr, nullptr, nullptr, modded_iv, 1));
+    CALL_OPENSSL_CHECKED(::EVP_CipherUpdate(m_ctr.get(),
+                                            static_cast<byte*>(ciphertext),
+                                            &out_len,
+                                            static_cast<const byte*>(plaintext),
+                                            out_len));
 }
 
 bool AES_SIV::decrypt_and_verify(const void* ciphertext,
@@ -198,9 +227,13 @@ bool AES_SIV::decrypt_and_verify(const void* ciphertext,
     temp_iv[8] &= 0x7fu;
     temp_iv[12] &= 0x7fu;
 
-    m_ctr.Resynchronize(temp_iv, array_length(temp_iv));
-    m_ctr.ProcessData(
-        static_cast<byte*>(plaintext), static_cast<const byte*>(ciphertext), text_len);
+    int out_len = safe_cast(text_len);
+    CALL_OPENSSL_CHECKED(::EVP_CipherInit_ex(m_ctr.get(), nullptr, nullptr, nullptr, temp_iv, 1));
+    CALL_OPENSSL_CHECKED(::EVP_CipherUpdate(m_ctr.get(),
+                                            static_cast<byte*>(plaintext),
+                                            &out_len,
+                                            static_cast<const byte*>(ciphertext),
+                                            out_len));
 
     s2v(plaintext, text_len, additional_data, additional_len, temp_iv);
     return CryptoPP::VerifyBufsEqual(static_cast<const byte*>(siv), temp_iv, AES_SIV::IV_SIZE);

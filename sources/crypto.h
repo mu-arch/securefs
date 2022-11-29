@@ -24,13 +24,25 @@ struct CMACCloser
     }
 };
 
+struct EVPCipherCTXFreer
+{
+    void operator()(::EVP_CIPHER_CTX* ctx)
+    {
+        if (ctx)
+        {
+            ::EVP_CIPHER_CTX_free(ctx);
+        }
+    }
+};
+
 // Implementation of AES-SIV according to https://tools.ietf.org/html/rfc5297
 class AES_SIV
 {
 private:
     Mutex m_mutex;
     std::unique_ptr<::CMAC_CTX, CMACCloser> m_cmac THREAD_ANNOTATION_GUARDED_BY(m_mutex);
-    CryptoPP::CTR_Mode<CryptoPP::AES>::Encryption m_ctr THREAD_ANNOTATION_GUARDED_BY(m_mutex);
+    std::unique_ptr<::EVP_CIPHER_CTX, EVPCipherCTXFreer>
+        m_ctr THREAD_ANNOTATION_GUARDED_BY(m_mutex);
 
 private:
     void s2v(const void* plaintext,
@@ -48,8 +60,6 @@ public:
 public:
     explicit AES_SIV(const void* key, size_t size);
     ~AES_SIV();
-
-    DISABLE_COPY_MOVE(AES_SIV);
 
     void encrypt_and_authenticate(const void* plaintext,
                                   size_t text_len,
