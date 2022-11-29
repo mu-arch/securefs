@@ -210,10 +210,8 @@ public:
     static void get_current_time(fuse_timespec& out);
     static void get_current_time_in_tm(struct tm* tm, int* nanoseconds);
 
-    static void read_password_no_confirmation(const char* prompt,
-                                              CryptoPP::AlignedSecByteBlock* output);
-    static void read_password_with_confirmation(const char* prompt,
-                                                CryptoPP::AlignedSecByteBlock* output);
+    static void read_password_no_confirmation(const char* prompt, SecByteBlock* output);
+    static void read_password_with_confirmation(const char* prompt, SecByteBlock* output);
     static std::string stringify_system_error(int errcode);
 };
 

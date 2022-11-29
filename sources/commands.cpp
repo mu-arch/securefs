@@ -306,7 +306,7 @@ void hmac_sha256(const securefs::key_type& base_key,
 
 Json::Value generate_config(unsigned int version,
                             const std::string& pbkdf_algorithm,
-                            const CryptoPP::AlignedSecByteBlock& master_key,
+                            const SecByteBlock& master_key,
                             StringRef maybe_key_file_path,
                             const securefs::key_type& salt,
                             const void* password,
@@ -322,7 +322,7 @@ Json::Value generate_config(unsigned int version,
     Json::Value config;
     config["version"] = version;
     key_type password_derived_key;
-    CryptoPP::AlignedSecByteBlock encrypted_master_key(nullptr, master_key.size());
+    SecByteBlock encrypted_master_key(0, master_key.size());
 
     if (pbkdf_algorithm == PBKDF_ALGO_PKCS5)
     {
@@ -483,7 +483,7 @@ bool parse_config(const Json::Value& config,
                   StringRef maybe_key_file_path,
                   const void* password,
                   size_t pass_len,
-                  CryptoPP::AlignedSecByteBlock& master_key,
+                  SecByteBlock& master_key,
                   unsigned& block_size,
                   unsigned& iv_size,
                   unsigned& max_padding)
@@ -510,7 +510,7 @@ bool parse_config(const Json::Value& config,
     byte iv[CONFIG_IV_LENGTH];
     byte mac[CONFIG_MAC_LENGTH];
     key_type salt;
-    CryptoPP::AlignedSecByteBlock encrypted_key;
+    SecByteBlock encrypted_key;
 
     std::string salt_hex = config["salt"].asString();
     const auto& encrypted_key_json_value = config["encrypted_key"];
@@ -610,14 +610,14 @@ FSConfig CommandBase::read_config(FileStream* stream,
     return result;
 }
 
-static void copy_key(const CryptoPP::AlignedSecByteBlock& in_key, key_type* out_key)
+static void copy_key(const SecByteBlock& in_key, key_type* out_key)
 {
     if (in_key.size() != out_key->size())
         throw_runtime_error("Invalid key size");
     memcpy(out_key->data(), in_key.data(), out_key->size());
 }
 
-static void copy_key(const CryptoPP::AlignedSecByteBlock& in_key, optional<key_type>* out_key)
+static void copy_key(const SecByteBlock& in_key, optional<key_type>* out_key)
 {
     out_key->emplace();
     copy_key(in_key, &(out_key->value()));
@@ -693,20 +693,20 @@ protected:
         "When set to true, ask for password even if a key file is used. "
         "password+keyfile provides even stronger security than one of them alone.",
         false};
-    CryptoPP::AlignedSecByteBlock password;
+    SecByteBlock password;
 
     void get_password(bool require_confirmation)
     {
         if (pass.isSet() && !pass.getValue().empty())
         {
-            password.Assign(reinterpret_cast<const byte*>(pass.getValue().data()),
+            password.assign(reinterpret_cast<const byte*>(pass.getValue().data()),
                             pass.getValue().size());
             OPENSSL_cleanse(&pass.getValue()[0], pass.getValue().size());
             return;
         }
         if (keyfile.isSet() && !keyfile.getValue().empty() && !askpass.getValue())
         {
-            password.Assign(reinterpret_cast<const byte*>(EMPTY_PASSWORD_WHEN_KEY_FILE_IS_USED),
+            password.assign(reinterpret_cast<const byte*>(EMPTY_PASSWORD_WHEN_KEY_FILE_IS_USED),
                             strlen(EMPTY_PASSWORD_WHEN_KEY_FILE_IS_USED));
             return;
         }
@@ -856,7 +856,7 @@ public:
 class ChangePasswordCommand : public _DataDirCommandBase
 {
 private:
-    CryptoPP::AlignedSecByteBlock old_password, new_password;
+    SecByteBlock old_password, new_password;
     TCLAP::ValueArg<unsigned> rounds{
         "r",
         "rounds",
@@ -897,9 +897,9 @@ private:
         "",
         "string"};
 
-    static void assign(StringRef value, CryptoPP::AlignedSecByteBlock& output)
+    static void assign(StringRef value, SecByteBlock& output)
     {
-        output.Assign(reinterpret_cast<const byte*>(value.data()), value.size());
+        output.assign(reinterpret_cast<const byte*>(value.data()), value.size());
     }
 
 public:

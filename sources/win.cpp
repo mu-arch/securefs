@@ -1064,8 +1064,7 @@ void OSService::get_current_time_in_tm(struct tm* tm, int* ns)
     *ns = spec.tv_nsec;
 }
 
-void OSService::read_password_no_confirmation(const char* prompt,
-                                              CryptoPP::AlignedSecByteBlock* output)
+void OSService::read_password_no_confirmation(const char* prompt, SecByteBlock* output)
 {
     byte buffer[4000];
     DEFER(CryptoPP::SecureWipeBuffer(buffer, array_length(buffer)));
@@ -1105,10 +1104,9 @@ void OSService::read_password_no_confirmation(const char* prompt,
     memcpy(output->data(), buffer, bufsize);
 }
 
-void OSService::read_password_with_confirmation(const char* prompt,
-                                                CryptoPP::AlignedSecByteBlock* output)
+void OSService::read_password_with_confirmation(const char* prompt, SecByteBlock* output)
 {
-    CryptoPP::AlignedSecByteBlock another;
+    SecByteBlock another;
     read_password_no_confirmation(prompt, output);
     read_password_no_confirmation("Again: ", &another);
     if (output->size() != another.size()

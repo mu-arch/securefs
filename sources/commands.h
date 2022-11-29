@@ -12,7 +12,7 @@ int commands_main(int argc, const char* const* argv);
 
 struct FSConfig
 {
-    CryptoPP::AlignedSecByteBlock master_key;
+    SecByteBlock master_key;
     unsigned block_size;
     unsigned iv_size;
     unsigned version;

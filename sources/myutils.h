@@ -15,7 +15,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include <absl/container/fixed_array.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/types/optional.h>
 #include <openssl/crypto.h>
@@ -269,10 +268,18 @@ void warn_if_key_not_random(const Container& c, const char* file, int line) noex
     warn_if_key_not_random(c.data(), c.size(), file, line);
 }
 
-class SecByteBlock : public absl::FixedArray<unsigned char>
+class SecByteBlock : public std::vector<unsigned char>
 {
 public:
-    using FixedArray::FixedArray;
+    using vector::vector;
+
+    SecByteBlock() {}
+
+    explicit SecByteBlock(const unsigned char* data, size_t size) : SecByteBlock(data, data + size)
+    {
+    }
+
+    void assign(const unsigned char* data, size_t size) { vector::assign(data, data + size); }
 
     ~SecByteBlock()
     {

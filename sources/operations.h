@@ -17,7 +17,7 @@ namespace operations
     {
         optional<int> version;
         std::shared_ptr<const OSService> root;
-        CryptoPP::AlignedSecByteBlock master_key;
+        SecByteBlock master_key;
         optional<uint32_t> flags;
         optional<unsigned> block_size;
         optional<unsigned> iv_size;
@@ -31,7 +31,7 @@ namespace operations
     struct FileSystemContext
     {
     private:
-        static key_type from_cryptopp_key(const CryptoPP::AlignedSecByteBlock& key)
+        static key_type from_cryptopp_key(const SecByteBlock& key)
         {
             if (key.size() != KEY_LENGTH)
                 throwInvalidArgumentException("Invalid key length");

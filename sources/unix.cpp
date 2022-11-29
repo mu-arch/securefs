@@ -474,8 +474,7 @@ int OSService::removexattr(const char* path, const char* name) const noexcept
 }
 #endif    // __APPLE__
 
-void OSService::read_password_no_confirmation(const char* prompt,
-                                              CryptoPP::AlignedSecByteBlock* output)
+void OSService::read_password_no_confirmation(const char* prompt, SecByteBlock* output)
 {
     byte buffer[4000];
     DEFER(CryptoPP::SecureWipeBuffer(buffer, array_length(buffer)));
@@ -529,15 +528,14 @@ void OSService::get_current_time_in_tm(struct tm* tm, int* nanoseconds)
         *nanoseconds = static_cast<int>(now.tv_nsec);
 }
 
-void OSService::read_password_with_confirmation(const char* prompt,
-                                                CryptoPP::AlignedSecByteBlock* output)
+void OSService::read_password_with_confirmation(const char* prompt, SecByteBlock* output)
 {
     read_password_no_confirmation(prompt, output);
     if (!::isatty(STDIN_FILENO) || !::isatty(STDERR_FILENO))
     {
         return;
     }
-    CryptoPP::AlignedSecByteBlock another;
+    SecByteBlock another;
     read_password_no_confirmation("Again: ", &another);
     if (output->size() != another.size()
         || memcmp(output->data(), another.data(), another.size()) != 0)

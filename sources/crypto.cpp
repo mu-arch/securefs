@@ -87,7 +87,7 @@ void AES_SIV::s2v(const void* plaintext,
 
     if (text_len >= AES_SIV::IV_SIZE)
     {
-        CryptoPP::AlignedSecByteBlock T(static_cast<const byte*>(plaintext), text_len);
+        SecByteBlock T(static_cast<const byte*>(plaintext), text_len);
         CryptoPP::xorbuf(T.data() + text_len - array_length(D), D, array_length(D));
         m_cmac.CalculateDigest(static_cast<byte*>(iv), T.data(), T.size());
     }

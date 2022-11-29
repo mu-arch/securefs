@@ -180,7 +180,7 @@ length_type BlockBasedStream::read_block(offset_type block_number,
     if (begin >= end)
         return 0;
 
-    CryptoPP::AlignedSecByteBlock buffer(m_block_size);
+    SecByteBlock buffer(m_block_size);
     auto rc = read_block(block_number, buffer.data());
     if (rc <= begin)
         return 0;
@@ -209,7 +209,7 @@ void BlockBasedStream::read_then_write_block(offset_type block_number,
     if (begin >= end)
         return;
 
-    CryptoPP::AlignedSecByteBlock buffer(m_block_size);
+    SecByteBlock buffer(m_block_size);
     auto rc = read_block(block_number, buffer.data());
     memcpy(buffer.data() + begin, input, end - begin);
     write_block(block_number, buffer.data(), std::max<length_type>(rc, end));
@@ -294,7 +294,7 @@ void BlockBasedStream::unchecked_resize(length_type current_size, length_type ne
         auto block_num = new_size / m_block_size;
         if (residue > 0)
         {
-            CryptoPP::AlignedSecByteBlock buffer(m_block_size);
+            SecByteBlock buffer(m_block_size);
             memset(buffer.data(), 0, buffer.size());
             (void)read_block(block_num, buffer.data());
             write_block(block_num, buffer.data(), residue);
@@ -519,7 +519,7 @@ namespace internal
             if (length == get_header_size())
                 return unchecked_read_header(output) == length;
 
-            CryptoPP::AlignedSecByteBlock buffer(get_header_size());
+            SecByteBlock buffer(get_header_size());
             auto rc = unchecked_read_header(buffer.data());
             memcpy(output, buffer.data(), std::min(length, rc));
             return rc != 0;
@@ -535,7 +535,7 @@ namespace internal
             if (length == get_header_size())
                 return unchecked_write_header(input);
 
-            CryptoPP::AlignedSecByteBlock buffer(get_header_size());
+            SecByteBlock buffer(get_header_size());
             memcpy(buffer.data(), input, length);
             memset(buffer.data() + length, 0, buffer.size() - length);
             unchecked_write_header(buffer.data());
