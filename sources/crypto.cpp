@@ -10,6 +10,9 @@
 #include <cryptopp/rng.h>
 #include <cryptopp/sha.h>
 
+#include <openssl/crypto.h>
+#include <openssl/err.h>
+
 // Some of the following codes are copied from https://github.com/arktronic/aes-siv.
 // The licence follows:
 
@@ -31,6 +34,33 @@
 
 namespace securefs
 {
+
+class OpenSSLException : public ExceptionBase
+{
+private:
+    unsigned long m_openssl_error;
+    const char* m_file;
+    int m_line;
+
+public:
+    explicit OpenSSLException(unsigned openssl_error, const char* file, int line)
+        : m_openssl_error(openssl_error), m_file(file), m_line(line)
+    {
+    }
+    std::string message() const override
+    {
+        char buffer[4095];
+        ERR_error_string_n(m_openssl_error, buffer, sizeof(buffer));
+        return absl::StrCat("OpenSSL error at ", m_file, " line ", m_line, ": ", buffer);
+    }
+};
+
+#define CALL_OPENSSL_CHECKED(value)                                                                \
+    do                                                                                             \
+    {                                                                                              \
+        if ((value) != 1)                                                                          \
+            throw ::securefs::OpenSSLException(::ERR_get_error(), __FILE__, __LINE__);             \
+    } while (0)
 
 static const byte aes256_siv_zero_block[AES_SIV::IV_SIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
