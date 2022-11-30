@@ -271,6 +271,16 @@ bool hmac_sha256_verify(const void* message,
     return CRYPTO_memcmp(mac, computed_mac, std::min(sizeof(computed_mac), mac_len));
 }
 
+static ::EVP_KDF* get_pbkdf_hmac_kdf()
+{
+    static auto kdf = ::EVP_KDF_fetch(nullptr, "PBKDF2", nullptr);
+    if (!kdf)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    return kdf;
+}
+
 unsigned int pbkdf_hmac_sha256(const void* password,
                                size_t pass_len,
                                const void* salt,
@@ -280,16 +290,20 @@ unsigned int pbkdf_hmac_sha256(const void* password,
                                void* derived,
                                size_t derive_len)
 {
-    CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> kdf;
-    return kdf.DeriveKey(static_cast<byte*>(derived),
-                         derive_len,
-                         0,
-                         static_cast<const byte*>(password),
-                         pass_len,
-                         static_cast<const byte*>(salt),
-                         salt_len,
-                         min_iterations,
-                         min_seconds);
+    ::EVP_KDF_CTX* kctx = ::EVP_KDF_CTX_new(get_pbkdf_hmac_kdf());
+    if (!kctx)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    DEFER(if (kctx) { ::EVP_KDF_CTX_free(kctx); });
+    OSSL_PARAM params[]
+        = {OSSL_PARAM_construct_utf8_string("digest", "sha256", (size_t)7),
+           OSSL_PARAM_construct_octet_string("salt", const_cast<void*>(salt), salt_len),
+           OSSL_PARAM_construct_octet_string("pass", const_cast<void*>(password), pass_len),
+           OSSL_PARAM_construct_uint("iter", &min_iterations),
+           OSSL_PARAM_construct_end()};
+    CALL_OPENSSL_CHECKED(::EVP_KDF_CTX_set_params(kctx, params));
+    CALL_OPENSSL_CHECKED(::EVP_KDF_derive(kctx, static_cast<byte*>(derived), derive_len, params));
 }
 
 static ::EVP_KDF* get_hkdf_kdf()

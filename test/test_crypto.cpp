@@ -323,6 +323,54 @@ TEST_CASE("Test hkdf with null salt")
     REQUIRE(memcmp(test_derived, true_derived_key, sizeof(test_derived)) == 0);
 }
 
+TEST_CASE("Test PBKDF2-HMAC-SHA256")
+{
+    const byte salt[] = {0x4d,
+                         0x81,
+                         0xd0,
+                         0xa8,
+                         0x5f,
+                         0xce,
+                         0x3c,
+                         0xd9,
+                         0x91,
+                         0x1e,
+                         0xee,
+                         0xb0,
+                         0x9b,
+                         0x5d,
+                         0x3f,
+                         0xa0,
+                         0x8d};
+    const byte password[] = {0x6d,
+                             0x79,
+                             0x20,
+                             0x67,
+                             0x72,
+                             0x65,
+                             0x61,
+                             0x74,
+                             0x20,
+                             0x70,
+                             0x61,
+                             0x73,
+                             0x73,
+                             0x77,
+                             0x6f,
+                             0x72,
+                             0x64};
+    const byte reference_result[]
+        = {0x88, 0x8f, 0xb8, 0x8d, 0x2b, 0x52, 0xad, 0x9,  0x9b, 0x19, 0x76, 0x6b, 0xbd, 0x8b,
+           0x7e, 0x3d, 0x94, 0x53, 0x1a, 0x67, 0x7e, 0xa2, 0xa1, 0xcb, 0x7,  0x5c, 0xe2, 0xa6,
+           0x9c, 0xb6, 0x96, 0x58, 0x87, 0xba, 0xa6, 0x60, 0x25, 0x96, 0xd5, 0x78, 0x45, 0x75,
+           0x63, 0x34, 0xcb, 0x45, 0xa1, 0x11, 0x40, 0x97, 0x3,  0x97, 0x62, 0x35, 0x3,  0xbf,
+           0x16, 0xf3, 0x1f, 0x4,  0x43, 0x6d, 0xdf, 0x17, 0xe0, 0x3b, 0xcb};
+    byte result[sizeof(reference_result)];
+    securefs::pbkdf_hmac_sha256(
+        password, sizeof(password), salt, sizeof(salt), 333, 0, result, sizeof(result));
+    REQUIRE(memcmp(result, reference_result, sizeof(result)) == 0);
+}
+
 static void test_scrypt(const char* password,
                         const char* salt,
                         uint64_t N,
