@@ -8,6 +8,7 @@
 #include <openssl/cmac.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -135,4 +136,22 @@ unsigned int pbkdf_hmac_sha256(const void* password,
                                size_t derive_len);
 
 void generate_random(void* buffer, size_t size);
+
+struct RandFreer
+{
+    void operator()(::EVP_RAND_CTX* ctx)
+    {
+        if (ctx)
+            ::EVP_RAND_CTX_free(ctx);
+    }
+};
+class SecureRandom
+{
+private:
+    std::unique_ptr<::EVP_RAND_CTX, RandFreer> m_ctx;
+
+public:
+    SecureRandom();
+    void generate(void* buffer, size_t size);
+};
 }    // namespace securefs

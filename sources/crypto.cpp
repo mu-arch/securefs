@@ -10,6 +10,7 @@
 #include <cryptopp/rng.h>
 #include <cryptopp/sha.h>
 
+#include <openssl/core_names.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 
@@ -241,8 +242,8 @@ bool AES_SIV::decrypt_and_verify(const void* ciphertext,
 
 void generate_random(void* buffer, size_t size)
 {
-    static thread_local CryptoPP::AutoSeededRandomPool rng;
-    rng.GenerateBlock(static_cast<byte*>(buffer), size);
+    static thread_local SecureRandom rng;
+    rng.generate(buffer, size);
 }
 
 void hmac_sha256_calculate(
@@ -362,5 +363,34 @@ void HMAC_SHA256::digest(void* digest, size_t size)
 void HMAC_SHA256::reset()
 {
     CALL_OPENSSL_CHECKED(::HMAC_Init_ex(m_ctx.get(), nullptr, 0, nullptr, nullptr));
+}
+
+static ::EVP_RAND* get_default_rand_algorithm()
+{
+    static auto result = ::EVP_RAND_fetch(nullptr, "CTR-DRBG", nullptr);
+    if (!result)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    return result;
+}
+
+SecureRandom::SecureRandom()
+{
+    m_ctx.reset(::EVP_RAND_CTX_new(get_default_rand_algorithm(), nullptr));
+    if (!m_ctx)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    OSSL_PARAM params[]
+        = {OSSL_PARAM_construct_utf8_string(OSSL_DRBG_PARAM_CIPHER, SN_aes_256_ctr, 0),
+           OSSL_PARAM_construct_end()};
+    CALL_OPENSSL_CHECKED(::EVP_RAND_instantiate(m_ctx.get(), 128, 1, nullptr, 0, params));
+}
+
+void SecureRandom::generate(void* buffer, size_t size)
+{
+    CALL_OPENSSL_CHECKED(
+        ::EVP_RAND_generate(m_ctx.get(), static_cast<byte*>(buffer), size, 128, 1, nullptr, 0));
 }
 }    // namespace securefs
