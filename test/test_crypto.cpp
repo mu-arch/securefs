@@ -296,6 +296,33 @@ TEST_CASE("Test hkdf")
     REQUIRE(memcmp(test_derived, true_derived_key, sizeof(test_derived)) == 0);
 }
 
+TEST_CASE("Test hkdf with null salt")
+{
+    const byte key[] = {0x1d,
+                        0x8e,
+                        0x2a,
+                        0xec,
+                        0x9,
+                        0xd3,
+                        0x29,
+                        0x1a,
+                        0x15,
+                        0xa5,
+                        0x8,
+                        0x78,
+                        0x6a,
+                        0x2f,
+                        0xdc,
+                        0x28};
+    const byte true_derived_key[]
+        = {0xe8, 0x1f, 0xfc, 0xb0, 0xa0, 0x6a, 0x39, 0x17, 0x34, 0xd2, 0x6e,
+           0x81, 0xda, 0x56, 0x9e, 0xa0, 0xb0, 0xd3, 0x96, 0x2,  0xd9, 0xba,
+           0xfe, 0x8a, 0x39, 0xe3, 0xdf, 0x8c, 0x26, 0xae, 0x85, 0x47};
+    byte test_derived[sizeof(true_derived_key)];
+    securefs::hkdf(key, sizeof(key), nullptr, 0, nullptr, 0, test_derived, sizeof(test_derived));
+    REQUIRE(memcmp(test_derived, true_derived_key, sizeof(test_derived)) == 0);
+}
+
 static void test_scrypt(const char* password,
                         const char* salt,
                         uint64_t N,

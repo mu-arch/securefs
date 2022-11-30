@@ -13,6 +13,9 @@
 #include <openssl/core_names.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/kdf.h>
+#include <openssl/params.h>
 
 #include <cerrno>
 #include <limits>
@@ -289,31 +292,14 @@ unsigned int pbkdf_hmac_sha256(const void* password,
                          min_seconds);
 }
 
-static void hkdf_expand(const void* distilled_key,
-                        size_t dis_len,
-                        const void* info,
-                        size_t info_len,
-                        void* output,
-                        size_t out_len)
+static ::EVP_KDF* get_hkdf_kdf()
 {
-    typedef CryptoPP::HMAC<CryptoPP::SHA256> hmac_type;
-    if (out_len > 255 * hmac_type::DIGESTSIZE)
-        throwInvalidArgumentException("Output length too large");
-    hmac_type calculator(static_cast<const byte*>(distilled_key), dis_len);
-    byte* out = static_cast<byte*>(output);
-    size_t i = 0, j = 0;
-    byte counter = 1;
-    while (i + j < out_len)
+    static auto kdf = ::EVP_KDF_fetch(nullptr, "HKDF", nullptr);
+    if (!kdf)
     {
-        calculator.Update(out + i, j);
-        calculator.Update(static_cast<const byte*>(info), info_len);
-        calculator.Update(&counter, sizeof(counter));
-        ++counter;
-        auto small_len = std::min<size_t>(out_len - i - j, hmac_type::DIGESTSIZE);
-        calculator.TruncatedFinal(out + i + j, small_len);
-        i += j;
-        j = small_len;
+        CALL_OPENSSL_CHECKED(0);
     }
+    return kdf;
 }
 
 void hkdf(const void* key,
@@ -325,17 +311,20 @@ void hkdf(const void* key,
           void* output,
           size_t out_len)
 {
-    if (salt && salt_len)
+    ::EVP_KDF_CTX* kctx = ::EVP_KDF_CTX_new(get_hkdf_kdf());
+    if (!kctx)
     {
-        byte distilled_key[32];
-        hmac_sha256_calculate(
-            key, key_len, salt, salt_len, distilled_key, array_length(distilled_key));
-        hkdf_expand(distilled_key, array_length(distilled_key), info, info_len, output, out_len);
+        CALL_OPENSSL_CHECKED(0);
     }
-    else
-    {
-        hkdf_expand(key, key_len, info, info_len, output, out_len);
-    }
+    DEFER(if (kctx) { ::EVP_KDF_CTX_free(kctx); });
+    OSSL_PARAM params[]
+        = {OSSL_PARAM_construct_utf8_string("digest", "sha256", (size_t)7),
+           OSSL_PARAM_construct_octet_string("salt", const_cast<void*>(salt), salt_len),
+           OSSL_PARAM_construct_octet_string("key", const_cast<void*>(key), key_len),
+           OSSL_PARAM_construct_octet_string("info", const_cast<void*>(info), info_len),
+           OSSL_PARAM_construct_end()};
+    CALL_OPENSSL_CHECKED(::EVP_KDF_CTX_set_params(kctx, params));
+    CALL_OPENSSL_CHECKED(::EVP_KDF_derive(kctx, static_cast<byte*>(output), out_len, params));
 }
 
 HMAC_SHA256::HMAC_SHA256(const void* key, size_t size)
