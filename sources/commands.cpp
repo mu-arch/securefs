@@ -385,18 +385,17 @@ Json::Value generate_config(unsigned int version,
     byte mac[CONFIG_MAC_LENGTH];
     generate_random(iv, array_length(iv));
 
-    CryptoPP::GCM<CryptoPP::AES>::Encryption encryptor;
-    encryptor.SetKeyWithIV(
-        password_derived_key.data(), password_derived_key.size(), iv, array_length(iv));
-    encryptor.EncryptAndAuthenticate(encrypted_master_key.data(),
-                                     mac,
-                                     array_length(mac),
-                                     iv,
-                                     array_length(iv),
-                                     reinterpret_cast<const byte*>(get_version_header(version)),
-                                     strlen(get_version_header(version)),
-                                     master_key.data(),
-                                     master_key.size());
+    AES_GCM encryptor(
+        password_derived_key.data(), password_derived_key.size(), CipherMode::ENCRYPT);
+    encryptor.encrypt_and_authenticate(encrypted_master_key.data(),
+                                       mac,
+                                       array_length(mac),
+                                       iv,
+                                       array_length(iv),
+                                       reinterpret_cast<const byte*>(get_version_header(version)),
+                                       strlen(get_version_header(version)),
+                                       master_key.data(),
+                                       master_key.size());
 
     Json::Value encrypted_key;
     encrypted_key["IV"] = hexify(iv, array_length(iv));

@@ -335,7 +335,7 @@ namespace internal
         static const int64_t max_block_number = 1 << 30;
 
     private:
-        CryptoPP::GCM<CryptoPP::AES>::Encryption m_enc;
+        AES_GCM m_enc;
         CryptoPP::GCM<CryptoPP::AES>::Decryption m_dec;
         HMACStream m_metastream;
         id_type m_id;
@@ -368,6 +368,7 @@ namespace internal
                                    unsigned iv_size,
                                    unsigned header_size)
             : CryptStream(data_stream, block_size)
+            , m_enc(data_key.data(), data_key.size(), CipherMode::ENCRYPT)
             , m_metastream(meta_key, id_, meta_stream, check)
             , m_id(id_)
             , m_iv_size(iv_size)
@@ -375,7 +376,6 @@ namespace internal
             , m_check(check)
         {
             const byte null_iv[12] = {};
-            m_enc.SetKeyWithIV(data_key.data(), data_key.size(), null_iv, array_length(null_iv));
             m_dec.SetKeyWithIV(data_key.data(), data_key.size(), null_iv, array_length(null_iv));
             warn_if_key_not_random(data_key, __FILE__, __LINE__);
             warn_if_key_not_random(meta_key, __FILE__, __LINE__);
@@ -399,15 +399,15 @@ namespace internal
             {
                 generate_random(iv, get_iv_size());
             } while (is_all_zeros(iv, get_iv_size()));    // Null IVs are markers for sparse blocks
-            m_enc.EncryptAndAuthenticate(static_cast<byte*>(output),
-                                         mac,
-                                         get_mac_size(),
-                                         iv,
-                                         get_iv_size(),
-                                         id().data(),
-                                         id().size(),
-                                         static_cast<const byte*>(input),
-                                         length);
+            m_enc.encrypt_and_authenticate(static_cast<byte*>(output),
+                                           mac,
+                                           get_mac_size(),
+                                           iv,
+                                           get_iv_size(),
+                                           id().data(),
+                                           id().size(),
+                                           static_cast<const byte*>(input),
+                                           length);
             auto pos = meta_position_for_iv(block_number);
             m_metastream.write(buffer.get(), pos, get_meta_size());
         }
@@ -499,15 +499,15 @@ namespace internal
             byte* ciphertext = mac + get_mac_size();
             generate_random(iv, get_iv_size());
 
-            m_enc.EncryptAndAuthenticate(ciphertext,
-                                         mac,
-                                         get_mac_size(),
-                                         iv,
-                                         get_iv_size(),
-                                         id().data(),
-                                         id().size(),
-                                         static_cast<const byte*>(input),
-                                         get_header_size());
+            m_enc.encrypt_and_authenticate(ciphertext,
+                                           mac,
+                                           get_mac_size(),
+                                           iv,
+                                           get_iv_size(),
+                                           id().data(),
+                                           id().size(),
+                                           static_cast<const byte*>(input),
+                                           get_header_size());
             m_metastream.write(buffer.get(), 0, get_encrypted_header_size());
         }
 

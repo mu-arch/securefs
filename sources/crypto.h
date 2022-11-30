@@ -89,6 +89,39 @@ public:
                             const void* siv);
 };
 
+enum class CipherMode
+{
+    DECRYPT = 0,
+    ENCRYPT = 1
+};
+
+class AES_GCM
+{
+private:
+    std::unique_ptr<::EVP_CIPHER_CTX, EVPCipherCTXFreer> m_ctx;
+
+public:
+    explicit AES_GCM(const byte* key, size_t size, CipherMode cipher_mode);
+    void encrypt_and_authenticate(byte* ciphertext,
+                                  byte* mac,
+                                  size_t macSize,
+                                  const byte* iv,
+                                  int ivLength,
+                                  const byte* header,
+                                  size_t headerLength,
+                                  const byte* message,
+                                  size_t messageLength);
+    bool decrypt_and_verify(byte* message,
+                            const byte* mac,
+                            size_t macSize,
+                            const byte* iv,
+                            int ivLength,
+                            const byte* header,
+                            size_t headerLength,
+                            const byte* ciphertext,
+                            size_t ciphertextLength);
+};
+
 class HMAC_SHA256
 {
 private:

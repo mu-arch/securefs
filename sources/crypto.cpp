@@ -303,6 +303,7 @@ unsigned int pbkdf_hmac_sha256(const void* password,
            OSSL_PARAM_construct_end()};
     CALL_OPENSSL_CHECKED(::EVP_KDF_CTX_set_params(kctx, params));
     CALL_OPENSSL_CHECKED(::EVP_KDF_derive(kctx, static_cast<byte*>(derived), derive_len, params));
+    return min_iterations;
 }
 
 static ::EVP_KDF* get_hkdf_kdf()
@@ -394,5 +395,58 @@ void SecureRandom::generate(void* buffer, size_t size)
 {
     CALL_OPENSSL_CHECKED(
         ::EVP_RAND_generate(m_ctx.get(), static_cast<byte*>(buffer), size, 128, 1, nullptr, 0));
+}
+
+AES_GCM::AES_GCM(const byte* key, size_t size, CipherMode cipher_mode)
+{
+    m_ctx.reset(::EVP_CIPHER_CTX_new());
+    if (!m_ctx)
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    const ::EVP_CIPHER* cipher = nullptr;
+    if (size == 16)
+    {
+        cipher = EVP_aes_128_gcm();
+    }
+    else if (size == 32)
+    {
+        cipher = EVP_aes_256_gcm();
+    }
+    else
+    {
+        throwInvalidArgumentException("Invalid key size for AES-GCM");
+    }
+    CALL_OPENSSL_CHECKED(::EVP_CipherInit_ex(
+        m_ctx.get(), cipher, nullptr, key, nullptr, cipher_mode == CipherMode::ENCRYPT));
+}
+
+void AES_GCM::encrypt_and_authenticate(byte* ciphertext,
+                                       byte* mac,
+                                       size_t macSize,
+                                       const byte* iv,
+                                       int ivLength,
+                                       const byte* header,
+                                       size_t headerLength,
+                                       const byte* message,
+                                       size_t messageLength)
+{
+    CALL_OPENSSL_CHECKED(
+        ::EVP_CIPHER_CTX_ctrl(m_ctx.get(), EVP_CTRL_GCM_SET_IVLEN, ivLength, nullptr));
+    CALL_OPENSSL_CHECKED(::EVP_CipherInit_ex(m_ctx.get(), nullptr, nullptr, nullptr, iv, 1));
+    int out_len = 0;
+    if (headerLength > 0)
+    {
+        CALL_OPENSSL_CHECKED(
+            ::EVP_CipherUpdate(m_ctx.get(), nullptr, &out_len, header, safe_cast(headerLength)));
+    }
+    CALL_OPENSSL_CHECKED(
+        ::EVP_CipherUpdate(m_ctx.get(), ciphertext, &out_len, message, safe_cast(messageLength)));
+    if (!::EVP_CipherFinal_ex(m_ctx.get(), ciphertext, &out_len))
+    {
+        CALL_OPENSSL_CHECKED(0);
+    }
+    CALL_OPENSSL_CHECKED(
+        ::EVP_CIPHER_CTX_ctrl(m_ctx.get(), EVP_CTRL_GCM_GET_TAG, safe_cast(macSize), mac));
 }
 }    // namespace securefs
