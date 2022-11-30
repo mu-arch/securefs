@@ -286,7 +286,6 @@ unsigned int pbkdf_hmac_sha256(const void* password,
                                const void* salt,
                                size_t salt_len,
                                unsigned int min_iterations,
-                               double min_seconds,
                                void* derived,
                                size_t derive_len)
 {

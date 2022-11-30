@@ -45,7 +45,6 @@ namespace
 
 const char* const CONFIG_FILE_NAME = ".securefs.json";
 const unsigned MIN_ITERATIONS = 20000;
-const unsigned MIN_DERIVE_SECONDS = 1;
 const size_t CONFIG_IV_LENGTH = 32, CONFIG_MAC_LENGTH = 16;
 
 const char* const PBKDF_ALGO_PKCS5 = "pkcs5-pbkdf2-hmac-sha256";
@@ -331,7 +330,6 @@ Json::Value generate_config(unsigned int version,
                                                  effective_salt.data(),
                                                  effective_salt.size(),
                                                  rounds ? rounds : MIN_ITERATIONS,
-                                                 rounds ? 0 : MIN_DERIVE_SECONDS,
                                                  password_derived_key.data(),
                                                  password_derived_key.size());
     }
@@ -436,7 +434,6 @@ void compute_password_derived_key(const Json::Value& config,
                           salt.data(),
                           salt.size(),
                           iterations,
-                          0,
                           password_derived_key.data(),
                           password_derived_key.size());
     }

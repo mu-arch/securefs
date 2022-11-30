@@ -367,7 +367,7 @@ TEST_CASE("Test PBKDF2-HMAC-SHA256")
            0x16, 0xf3, 0x1f, 0x4,  0x43, 0x6d, 0xdf, 0x17, 0xe0, 0x3b, 0xcb};
     byte result[sizeof(reference_result)];
     securefs::pbkdf_hmac_sha256(
-        password, sizeof(password), salt, sizeof(salt), 333, 0, result, sizeof(result));
+        password, sizeof(password), salt, sizeof(salt), 333, result, sizeof(result));
     REQUIRE(memcmp(result, reference_result, sizeof(result)) == 0);
 }
 
